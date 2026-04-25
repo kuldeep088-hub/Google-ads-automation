@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Automation Rules{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0"><i class="bi bi-gear me-2"></i>Automation Rules</h2>
+  <a href="/rules/new" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>New Rule</a>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead class="table-light">
+        <tr><th>Name</th><th>Type</th><th>Scope</th><th>Priority</th><th>Active</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+      {% for rule in rules %}
+      <tr>
+        <td class="fw-semibold">{{ rule.name }}</td>
+        <td><span class="badge bg-info text-dark">{{ rule.rule_type }}</span></td>
+        <td>{{ rule.scope }}{% if rule.scope_id %}<br><small class="text-muted">{{ rule.scope_id[:40] }}...</small>{% endif %}</td>
+        <td>{{ rule.priority }}</td>
+        <td>
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" id="toggle-{{ rule.id }}"
+              {% if rule.is_active %}checked{% endif %}
+              onchange="toggleRule({{ rule.id }}, this)">
+          </div>
+        </td>
+        <td>
+          <a href="/rules/{{ rule.id }}/edit" class="btn btn-sm btn-outline-secondary me-1"><i class="bi bi-pencil"></i></a>
+          <button class="btn btn-sm btn-outline-danger" onclick="deleteRule({{ rule.id }})"><i class="bi bi-trash"></i></button>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center text-muted py-4">No rules yet. <a href="/rules/new">Create your first rule</a>.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="mt-4">
+  <h5>Rule Types Reference</h5>
+  <div class="row g-2">
+    {% for rt in rule_types %}
+    <div class="col-md-4">
+      <div class="card border-0 bg-light small p-2">
+        <strong>{{ rt }}</strong>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+async function toggleRule(id, checkbox) {
+  const res = await fetch(`/rules/${id}/toggle`, { method: 'POST' });
+  if (!res.ok) checkbox.checked = !checkbox.checked;
+}
+async function deleteRule(id) {
+  if (!confirm('Delete this rule?')) return;
+  const res = await fetch(`/rules/${id}`, { method: 'DELETE' });
+  if (res.ok) location.reload();
+}
+</script>
+{% endblock %}

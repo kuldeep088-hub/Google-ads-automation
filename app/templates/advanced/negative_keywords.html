@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Negative Keywords — Ads Automation{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-ban me-2 text-danger"></i>Negative Keywords Auto-Mined</h4>
+  <div>
+    <a href="/advanced/promoted-keywords" class="btn btn-sm btn-outline-success me-2"><i class="bi bi-arrow-up-circle me-1"></i>Promoted Keywords</a>
+    <a href="/advanced/quality-scores" class="btn btn-sm btn-outline-warning me-2"><i class="bi bi-star me-1"></i>Quality Scores</a>
+    <a href="/advanced/ml-predictions" class="btn btn-sm btn-outline-primary"><i class="bi bi-cpu me-1"></i>ML Predictions</a>
+  </div>
+</div>
+
+<div class="row mb-3">
+  <div class="col-md-3">
+    <div class="card text-center border-danger">
+      <div class="card-body py-2">
+        <div class="fs-4 fw-bold text-danger">{{ rows | length }}</div>
+        <div class="text-muted small">Negative Keywords Added</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center border-warning">
+      <div class="card-body py-2">
+        <div class="fs-4 fw-bold text-warning">${{ total_wasted_usd }}</div>
+        <div class="text-muted small">Total Wasted Spend Blocked</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header bg-light d-flex justify-content-between align-items-center">
+    <strong>Auto-Added Negative Keywords</strong>
+    <form class="d-flex" method="get">
+      <input type="text" name="q" class="form-control form-control-sm me-2" placeholder="Search keyword..." style="width:200px">
+      <button class="btn btn-sm btn-outline-secondary">Filter</button>
+    </form>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Keyword</th>
+            <th>Match</th>
+            <th>Campaign</th>
+            <th>Reason</th>
+            <th class="text-end">Clicks Wasted</th>
+            <th class="text-end">Cost Wasted</th>
+            <th>Added At</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td><code>{{ r.keyword_text }}</code></td>
+            <td><span class="badge bg-secondary">{{ r.match_type }}</span></td>
+            <td class="text-muted small">{{ r.campaign_name or "—" }}</td>
+            <td>
+              {% if r.reason == "zero_conversions_waste" %}
+                <span class="badge bg-danger">Zero Conversions</span>
+              {% else %}
+                <span class="badge bg-secondary">{{ r.reason }}</span>
+              {% endif %}
+            </td>
+            <td class="text-end">{{ r.clicks_wasted }}</td>
+            <td class="text-end">${{ "%.2f"|format(r.cost_wasted_micros / 1000000) }}</td>
+            <td class="text-muted small">{{ r.added_at.strftime("%Y-%m-%d %H:%M") if r.added_at else "—" }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="text-center text-muted py-4">No negative keywords added yet. Run the <strong>negative_keyword_mining</strong> job from <a href="/jobs">Jobs</a>.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

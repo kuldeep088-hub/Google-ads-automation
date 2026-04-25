@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}ML Bid Predictions — Ads Automation{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-cpu me-2 text-primary"></i>ML Bid Predictions</h4>
+  <div>
+    <a href="/advanced/negative-keywords" class="btn btn-sm btn-outline-danger me-2"><i class="bi bi-ban me-1"></i>Negative Keywords</a>
+    <a href="/advanced/promoted-keywords" class="btn btn-sm btn-outline-success me-2"><i class="bi bi-arrow-up-circle me-1"></i>Promoted</a>
+    <a href="/advanced/quality-scores" class="btn btn-sm btn-outline-warning"><i class="bi bi-star me-1"></i>Quality Scores</a>
+  </div>
+</div>
+
+<div class="alert alert-info d-flex align-items-center mb-3">
+  <i class="bi bi-info-circle me-2"></i>
+  <div>
+    ML predictions are generated every 3 hours. Bids are <strong>not applied automatically</strong> until you enable <code>APPLY_PREDICTIONS = True</code> in <code>app/jobs/ml_bid_job.py</code>. Use this page to review suggestions first.
+  </div>
+</div>
+
+<div class="row mb-3">
+  {% set ml_rows = enriched | selectattr('row.model_version', 'equalto', 'ml_gradient_boost') | list %}
+  {% set rule_rows = enriched | selectattr('row.model_version', 'equalto', 'cpa_rule_fallback') | list %}
+  <div class="col-md-3">
+    <div class="card text-center border-primary">
+      <div class="card-body py-2">
+        <div class="fs-4 fw-bold text-primary">{{ enriched | length }}</div>
+        <div class="text-muted small">Keywords Scored</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center border-success">
+      <div class="card-body py-2">
+        <div class="fs-4 fw-bold text-success">{{ ml_rows | length }}</div>
+        <div class="text-muted small">ML Model Predictions</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center border-secondary">
+      <div class="card-body py-2">
+        <div class="fs-4 fw-bold text-secondary">{{ rule_rows | length }}</div>
+        <div class="text-muted small">Rule-Based Fallback</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header bg-light">
+    <strong>Bid Recommendations</strong>
+    <span class="text-muted small ms-2">Current bid vs ML-predicted optimal bid</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Keyword</th>
+            <th>Campaign</th>
+            <th class="text-end">Current Bid</th>
+            <th class="text-end">Predicted Bid</th>
+            <th class="text-end">Change</th>
+            <th class="text-end">Predicted CPA</th>
+            <th class="text-center">Confidence</th>
+            <th class="text-center">Method</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in enriched %}
+          {% set r = item.row %}
+          <tr>
+            <td><code>{{ r.keyword_text }}</code></td>
+            <td class="text-muted small">{{ r.campaign_name or "—" }}</td>
+            <td class="text-end">${{ "%.2f"|format(r.current_bid_micros / 1000000) }}</td>
+            <td class="text-end fw-bold">${{ "%.2f"|format(r.predicted_bid_micros / 1000000) }}</td>
+            <td class="text-end">
+              {% if item.direction == "up" %}
+                <span class="text-success"><i class="bi bi-arrow-up"></i> +{{ item.delta_pct }}%</span>
+              {% elif item.direction == "down" %}
+                <span class="text-danger"><i class="bi bi-arrow-down"></i> {{ item.delta_pct }}%</span>
+              {% else %}
+                <span class="text-muted">—</span>
+              {% endif %}
+            </td>
+            <td class="text-end">${{ "%.2f"|format(r.predicted_cpa) }}</td>
+            <td class="text-center">
+              <div class="progress" style="height:6px;min-width:60px">
+                <div class="progress-bar {% if r.confidence >= 0.75 %}bg-success{% else %}bg-warning{% endif %}"
+                     style="width:{{ (r.confidence * 100)|int }}%"></div>
+              </div>
+              <small class="text-muted">{{ (r.confidence * 100)|int }}%</small>
+            </td>
+            <td class="text-center">
+              {% if r.model_version == "ml_gradient_boost" %}
+                <span class="badge bg-primary">ML</span>
+              {% else %}
+                <span class="badge bg-secondary">Rules</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="text-center text-muted py-4">No predictions yet. Run the <strong>ml_bid_optimization</strong> job from <a href="/jobs">Jobs</a>.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Google Ads Automation{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0"><i class="bi bi-speedometer2 me-2"></i>Dashboard</h2>
+  <span class="text-muted small">Today: {{ summary.get('date', 'N/A') }}</span>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-md-2">
+    <div class="card border-0 shadow-sm h-100 kpi-card">
+      <div class="card-body text-center">
+        <div class="kpi-icon text-primary"><i class="bi bi-eye fs-3"></i></div>
+        <div class="kpi-value">{{ "{:,}".format(summary.get('impressions', 0)) }}</div>
+        <div class="kpi-label text-muted">Impressions</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-2">
+    <div class="card border-0 shadow-sm h-100 kpi-card">
+      <div class="card-body text-center">
+        <div class="kpi-icon text-success"><i class="bi bi-cursor fs-3"></i></div>
+        <div class="kpi-value">{{ "{:,}".format(summary.get('clicks', 0)) }}</div>
+        <div class="kpi-label text-muted">Clicks</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-2">
+    <div class="card border-0 shadow-sm h-100 kpi-card">
+      <div class="card-body text-center">
+        <div class="kpi-icon text-danger"><i class="bi bi-currency-dollar fs-3"></i></div>
+        <div class="kpi-value">${{ "%.2f"|format(summary.get('cost_usd', 0)) }}</div>
+        <div class="kpi-label text-muted">Spend</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-2">
+    <div class="card border-0 shadow-sm h-100 kpi-card">
+      <div class="card-body text-center">
+        <div class="kpi-icon text-warning"><i class="bi bi-trophy fs-3"></i></div>
+        <div class="kpi-value">{{ "%.1f"|format(summary.get('conversions', 0)) }}</div>
+        <div class="kpi-label text-muted">Conversions</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-2">
+    <div class="card border-0 shadow-sm h-100 kpi-card">
+      <div class="card-body text-center">
+        <div class="kpi-icon text-info"><i class="bi bi-percent fs-3"></i></div>
+        <div class="kpi-value">{{ "%.2f"|format(summary.get('ctr', 0) * 100) }}%</div>
+        <div class="kpi-label text-muted">CTR</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-2">
+    <div class="card border-0 shadow-sm h-100 kpi-card">
+      <div class="card-body text-center">
+        <div class="kpi-icon text-secondary"><i class="bi bi-graph-down fs-3"></i></div>
+        <div class="kpi-value">${{ "%.2f"|format(summary.get('cpa_usd', 0)) }}</div>
+        <div class="kpi-label text-muted">CPA</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-4">
+  <div class="col-md-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold">7-Day Spend & Clicks Trend</div>
+      <div class="card-body"><canvas id="trendChart" height="100"></canvas></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold">7-Day Conversions</div>
+      <div class="card-body"><canvas id="convChart" height="200"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- Campaigns Table + Recent Jobs -->
+<div class="row g-3">
+  <div class="col-md-8">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Top Campaigns</span>
+        <a href="/campaigns" class="btn btn-sm btn-outline-primary">View All</a>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0 small">
+          <thead class="table-light"><tr><th>Campaign</th><th>Status</th><th>Cost</th><th>Clicks</th><th>Conv.</th><th>CTR</th></tr></thead>
+          <tbody>
+          {% for c in campaigns %}
+          <tr>
+            <td class="text-truncate" style="max-width:180px">{{ c.campaign_name }}</td>
+            <td><span class="badge bg-{{ 'success' if c.status == 'ENABLED' else 'secondary' }}">{{ c.status }}</span></td>
+            <td>${{ "%.2f"|format(c.cost_usd) }}</td>
+            <td>{{ c.clicks }}</td>
+            <td>{{ "%.1f"|format(c.conversions) }}</td>
+            <td>{{ c.ctr }}%</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="text-center text-muted py-3">No campaign data yet. Configure your API credentials and refresh.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Recent Jobs</span>
+        <a href="/jobs" class="btn btn-sm btn-outline-secondary">History</a>
+      </div>
+      <ul class="list-group list-group-flush">
+        {% for job in recent_jobs %}
+        <li class="list-group-item d-flex justify-content-between align-items-center small">
+          <span>{{ job.job_name }}</span>
+          <span class="badge bg-{{ 'success' if job.status == 'success' else ('danger' if job.status == 'failed' else 'warning') }}">{{ job.status }}</span>
+        </li>
+        {% else %}
+        <li class="list-group-item text-muted small text-center">No jobs run yet</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+const labels = {{ chart_labels | safe }};
+const costData = {{ chart_cost | safe }};
+const clicksData = {{ chart_clicks | safe }};
+const convData = {{ chart_conversions | safe }};
+
+new Chart(document.getElementById('trendChart'), {
+  type: 'bar',
+  data: {
+    labels,
+    datasets: [
+      { label: 'Cost ($)', data: costData, backgroundColor: 'rgba(13,110,253,0.7)', yAxisID: 'y' },
+      { label: 'Clicks', data: clicksData, type: 'line', borderColor: '#198754', backgroundColor: 'transparent', yAxisID: 'y1' }
+    ]
+  },
+  options: { responsive: true, scales: { y: { position: 'left' }, y1: { position: 'right', grid: { drawOnChartArea: false } } } }
+});
+
+new Chart(document.getElementById('convChart'), {
+  type: 'line',
+  data: { labels, datasets: [{ label: 'Conversions', data: convData, borderColor: '#fd7e14', backgroundColor: 'rgba(253,126,20,0.1)', fill: true }] },
+  options: { responsive: true, plugins: { legend: { display: false } } }
+});
+</script>
+{% endblock %}

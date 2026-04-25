@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}Quality Scores — Ads Automation{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-star me-2 text-warning"></i>Quality Score Monitor</h4>
+  <div>
+    <a href="/advanced/negative-keywords" class="btn btn-sm btn-outline-danger me-2"><i class="bi bi-ban me-1"></i>Negative Keywords</a>
+    <a href="/advanced/promoted-keywords" class="btn btn-sm btn-outline-success me-2"><i class="bi bi-arrow-up-circle me-1"></i>Promoted</a>
+    <a href="/advanced/ml-predictions" class="btn btn-sm btn-outline-primary"><i class="bi bi-cpu me-1"></i>ML Predictions</a>
+  </div>
+</div>
+
+<div class="row mb-4">
+  <div class="col-md-4">
+    <div class="card">
+      <div class="card-header bg-light"><strong>QS Distribution</strong> <small class="text-muted">{{ snapshot_date }}</small></div>
+      <div class="card-body">
+        <canvas id="qsChart" height="200"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-8">
+    <div class="row g-2">
+      {% set low_qs = rows | selectattr('quality_score', 'le', 3) | list %}
+      {% set mid_qs = rows | selectattr('quality_score', 'ge', 4) | selectattr('quality_score', 'le', 6) | list %}
+      {% set high_qs = rows | selectattr('quality_score', 'ge', 7) | list %}
+      <div class="col-4">
+        <div class="card text-center border-danger h-100">
+          <div class="card-body py-3">
+            <div class="fs-3 fw-bold text-danger">{{ low_qs | length }}</div>
+            <div class="text-muted small">Low QS (1–3)</div>
+            <div class="text-danger small">Auto-paused if ≥5 clicks</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="card text-center border-warning h-100">
+          <div class="card-body py-3">
+            <div class="fs-3 fw-bold text-warning">{{ mid_qs | length }}</div>
+            <div class="text-muted small">Medium QS (4–6)</div>
+            <div class="text-warning small">Needs improvement</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-4">
+        <div class="card text-center border-success h-100">
+          <div class="card-body py-3">
+            <div class="fs-3 fw-bold text-success">{{ high_qs | length }}</div>
+            <div class="text-muted small">High QS (7–10)</div>
+            <div class="text-success small">Good performance</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header bg-light d-flex justify-content-between align-items-center">
+    <strong>Keyword Quality Scores</strong>
+    <span class="badge bg-secondary">{{ rows | length }} keywords</span>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Keyword</th>
+            <th>Match</th>
+            <th class="text-center">QS</th>
+            <th class="text-center">Expected CTR</th>
+            <th class="text-center">Ad Relevance</th>
+            <th class="text-center">Landing Page</th>
+            <th>Campaign</th>
+            <th class="text-end">Clicks</th>
+            <th class="text-center">Paused</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr class="{% if r.quality_score and r.quality_score <= 3 %}table-danger{% elif r.quality_score and r.quality_score <= 6 %}table-warning{% endif %}">
+            <td><code>{{ r.keyword_text }}</code></td>
+            <td><span class="badge bg-secondary">{{ r.match_type or "—" }}</span></td>
+            <td class="text-center">
+              {% if r.quality_score %}
+                <span class="fw-bold {% if r.quality_score <= 3 %}text-danger{% elif r.quality_score <= 6 %}text-warning{% else %}text-success{% endif %}">
+                  {{ r.quality_score }}/10
+                </span>
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-center">
+              {% if r.expected_ctr %}
+                {% if "ABOVE" in r.expected_ctr %}<span class="badge bg-success">Above Avg</span>
+                {% elif "BELOW" in r.expected_ctr %}<span class="badge bg-danger">Below Avg</span>
+                {% else %}<span class="badge bg-warning text-dark">Average</span>{% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-center">
+              {% if r.creative_quality %}
+                {% if "ABOVE" in r.creative_quality %}<span class="badge bg-success">Above Avg</span>
+                {% elif "BELOW" in r.creative_quality %}<span class="badge bg-danger">Below Avg</span>
+                {% else %}<span class="badge bg-warning text-dark">Average</span>{% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-center">
+              {% if r.landing_page_quality %}
+                {% if "ABOVE" in r.landing_page_quality %}<span class="badge bg-success">Above Avg</span>
+                {% elif "BELOW" in r.landing_page_quality %}<span class="badge bg-danger">Below Avg</span>
+                {% else %}<span class="badge bg-warning text-dark">Average</span>{% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-muted small">{{ r.campaign_name or "—" }}</td>
+            <td class="text-end">{{ r.clicks }}</td>
+            <td class="text-center">
+              {% if r.auto_paused %}<span class="badge bg-danger">Paused</span>{% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="9" class="text-center text-muted py-4">No quality score data yet. Run the <strong>quality_score_monitor</strong> job from <a href="/jobs">Jobs</a>.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const ctx = document.getElementById('qsChart');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: {{ chart_labels | safe }},
+    datasets: [{
+      label: 'Keywords',
+      data: {{ chart_data | safe }},
+      backgroundColor: [
+        '#6c757d','#dc3545','#dc3545','#dc3545',
+        '#ffc107','#ffc107','#ffc107',
+        '#198754','#198754','#198754','#198754'
+      ],
+    }]
+  },
+  options: {
+    plugins: { legend: { display: false } },
+    scales: { x: { title: { display: true, text: 'Quality Score' } }, y: { beginAtZero: true } }
+  }
+});
+</script>
+{% endblock %}

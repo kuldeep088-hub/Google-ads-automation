@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Weekly Report{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="mb-0"><i class="bi bi-bar-chart-line me-2"></i>Weekly Summary</h2>
+  <div class="d-flex gap-2">
+    <a href="/reports/daily" class="btn btn-outline-secondary">Daily Report</a>
+    <button class="btn btn-outline-primary" onclick="triggerJob('weekly_reporting')"><i class="bi bi-arrow-clockwise me-1"></i>Refresh</button>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold">Cost by Campaign (Last 7 Days)</div>
+      <div class="card-body"><canvas id="costChart" height="140"></canvas></div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card border-0 shadow-sm">
+      <div class="card-header bg-white fw-semibold">Conversions by Campaign</div>
+      <div class="card-body"><canvas id="convChart" height="140"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white fw-semibold">Top Campaigns</div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0 small">
+      <thead class="table-light"><tr><th>Campaign</th><th>Cost</th><th>Clicks</th><th>Conv.</th><th>CTR</th><th>CPA</th></tr></thead>
+      <tbody>
+      {% for c in campaigns %}
+      <tr>
+        <td>{{ c.campaign_name }}</td>
+        <td>${{ "%.2f"|format(c.cost_usd) }}</td>
+        <td>{{ c.clicks }}</td>
+        <td>{{ "%.1f"|format(c.conversions) }}</td>
+        <td>{{ c.ctr }}%</td>
+        <td>{{ '$%.2f'|format(c.cpa_usd) if c.cpa_usd else '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6" class="text-center text-muted py-3">No data. Run the weekly reporting job first.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+  <div class="card-header bg-white fw-semibold">Top Keywords</div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0 small">
+      <thead class="table-light"><tr><th>Keyword</th><th>Match</th><th>Campaign</th><th>Cost</th><th>Clicks</th><th>Conv.</th><th>CTR</th></tr></thead>
+      <tbody>
+      {% for k in keywords %}
+      <tr>
+        <td>{{ k.keyword }}</td>
+        <td><span class="badge bg-secondary">{{ k.match_type }}</span></td>
+        <td class="text-truncate" style="max-width:150px">{{ k.campaign_name }}</td>
+        <td>${{ "%.2f"|format(k.cost_usd) }}</td>
+        <td>{{ k.clicks }}</td>
+        <td>{{ "%.1f"|format(k.conversions) }}</td>
+        <td>{{ k.ctr }}%</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="text-center text-muted py-3">No keyword data.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+new Chart(document.getElementById('costChart'), {
+  type: 'bar',
+  data: {
+    labels: {{ chart_labels | safe }},
+    datasets: [{ label: 'Cost ($)', data: {{ chart_cost | safe }}, backgroundColor: 'rgba(13,110,253,0.7)' }]
+  },
+  options: { responsive: true, plugins: { legend: { display: false } } }
+});
+new Chart(document.getElementById('convChart'), {
+  type: 'bar',
+  data: {
+    labels: {{ chart_labels | safe }},
+    datasets: [{ label: 'Conversions', data: {{ chart_conversions | safe }}, backgroundColor: 'rgba(253,126,20,0.7)' }]
+  },
+  options: { responsive: true, plugins: { legend: { display: false } } }
+});
+async function triggerJob(name) {
+  const res = await fetch(`/jobs/trigger/${name}`, { method: 'POST' });
+  const d = await res.json();
+  alert(d.status === 'started' ? 'Job started!' : d.error);
+}
+</script>
+{% endblock %}
